@@ -16,10 +16,10 @@ with open('data/simulatie_parameters.json', 'r', encoding='utf-8') as bestand:
 def bereken_proportionele_verdeelsleutel(totaal_aantal_wagens):
     # proporties zijn bepaald in eerste analyse data (per locatie de wagens nodig = aantal reserveringen op die locatie / totaal aantal reservaties) met afronding tot 4 cijfers na de komma
     proporties = {
-        "Gent, Neermeerskaai 1A": 0.0820,
-        "Gent, Henri Farmanstraat 30": 0.1597,
-        "Gent, Hofstraat 47 (Seniotel)": 0.4455,
-        "Gent, Sint-Salvatorstraat 16": 0.3128
+        "Neermeerskaai_1A": 0.0820,
+        "Henri_Farmanstraat_30": 0.1597,
+        "Hofstraat_47_Seniotel": 0.4455,
+        "Sint-Salvatorstraat_16": 0.3128
     }
     
     verdeelsleutel = {}

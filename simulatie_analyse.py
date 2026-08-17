@@ -182,6 +182,23 @@ if simulatie_data is not None:
         mapnaam='elbow_reparaties'
     )
 
+    print("\nmaken van grafieken voor mediaan reparaties (de doorsnee wagen)")
+    genereer_staafgrafieken_per_vloot_apart(
+        data=simulatie_data, 
+        metriek_gemiddelde='mediaan_aantal_reparaties_per_wagen', 
+        metriek_ondergrens=None, 
+        metriek_bovengrens=None, 
+        y_as_label='mediaan aantal defecten per wagen', 
+        bestands_prefix='mediaan_reparaties',
+        y_as_vanaf_nul=True
+    )
+    genereer_elbow_curves_per_scenario(
+        data=simulatie_data, 
+        metriek_gemiddelde='mediaan_aantal_reparaties_per_wagen', 
+        y_as_label='mediaan aantal defecten per wagen', 
+        mapnaam='elbow_mediaan_reparaties'
+    )
+
     print("\nmaken van grafieken voor spreiding in het wagenvloot (spreiding slijtage)")
     # hoge spreiding betekent dat sommige wagens veel gereden worden terwijl andere stilstaan
     # lage spreiding betekent dat de meeste wagens in de vloot ongeveer evenveel minuten hebben gereden
