@@ -104,7 +104,7 @@ def voer_reservering_uit(simulatie_omgeving, parkeerplaats_wachtrij, huidige_res
 
         kans_op_lekke_band = bereken_weibull_faalkans(gekozen_wagen.minuten_banden_lek, effectieve_rijtijd_in_minuten, 1.0, 300000.0)
         kans_op_versleten_banden = bereken_weibull_faalkans(gekozen_wagen.minuten_banden_slijtage, effectieve_rijtijd_in_minuten, 3.5, 90000.0)
-        kans_op_versleten_remblokjes = bereken_weibull_faalkans(gekozen_wagen.minuten_remblokjes_slijtage, effectieve_rijtijd_in_minuten, 2.5, 240000.0)
+        kans_op_versleten_remblokjes = bereken_weibull_faalkans(gekozen_wagen.minuten_remblokjes_slijtage, effectieve_rijtijd_in_minuten, 2.5, 99960.0)
         
         gekozen_wagen.totale_levensduur_minuten += effectieve_rijtijd_in_minuten
         gekozen_wagen.minuten_banden_lek += effectieve_rijtijd_in_minuten
