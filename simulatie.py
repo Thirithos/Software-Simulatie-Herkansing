@@ -33,7 +33,7 @@ def bereken_proportionele_verdeelsleutel(totaal_aantal_wagens):
 
     # stel dat er een wagen over is dan wordt deze gewoon toegewezen aan drukste locatie
     if resterende_wagens != 0:
-        drukste_locatie = "Gent, Hofstraat 47 (Seniotel)"
+        drukste_locatie = "Hofstraat_47_Seniotel"
         verdeelsleutel[drukste_locatie] = verdeelsleutel[drukste_locatie] + resterende_wagens
         
     return verdeelsleutel

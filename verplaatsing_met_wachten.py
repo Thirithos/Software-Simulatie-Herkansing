@@ -2,10 +2,10 @@ import simpy
 import numpy as np
 
 # De L is gewoon voor leesbaarheid
-L1 = "Gent, Hofstraat 47 (Seniotel)"
-L2 = "Gent, Sint-Salvatorstraat 16"
-L3 = "Gent, Henri Farmanstraat 30"
-L4 = "Gent, Neermeerskaai 1A"
+L1 = "Hofstraat_47_Seniotel"
+L2 = "Sint-Salvatorstraat_16"
+L3 = "Henri_Farmanstraat_30"
+L4 = "Neermeerskaai_1A"
 
 # onderstaande reistijden zijn bepaald via google maps, door te kijken naar weekdagen, maximum en minimum en dan een waarde ertussen in, op werkelijke dag (gemeten op een vrijdag middag rond 13:40)
 minimale_reistijden_in_minuten = {

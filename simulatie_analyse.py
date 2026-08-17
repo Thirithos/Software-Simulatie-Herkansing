@@ -182,7 +182,7 @@ if simulatie_data is not None:
         mapnaam='elbow_reparaties'
     )
 
-    print("\nmaken van grafieken voor mediaan reparaties (de doorsnee wagen)")
+    print("\nmaken van grafieken voor mediaan reparaties")
     genereer_staafgrafieken_per_vloot_apart(
         data=simulatie_data, 
         metriek_gemiddelde='mediaan_aantal_reparaties_per_wagen', 
