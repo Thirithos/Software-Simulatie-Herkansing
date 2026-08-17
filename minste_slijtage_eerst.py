@@ -73,7 +73,6 @@ def voer_reservering_uit(simulatie_omgeving, parkeerplaats_wachtrij, huidige_res
         
     start_wacht_tijd_moment = simulatie_omgeving.now
     maximaal_geduld_klant_in_minuten = geduld_wachttijd_minuten
-    annuleringsmarge_in_minuten = 15.0
     
     if len(parkeerplaats_wachtrij.items) > 0:
         beschikbare_wagens = list(parkeerplaats_wachtrij.items)
@@ -93,8 +92,8 @@ def voer_reservering_uit(simulatie_omgeving, parkeerplaats_wachtrij, huidige_res
             statistieken['succesvol_gewacht'] += 1
             
         if huidige_reservering.get('sleutels_opgehaald', 1) == 0:
-            yield simulatie_omgeving.timeout(annuleringsmarge_in_minuten)
-            statistieken['niet_doorgegaan_en_vrijgegeven'] += 1
+            yield simulatie_omgeving.timeout(15.0)
+            statistieken['niet_doorgegaan'] += 1
             yield parkeerplaats_wachtrij.put(gekozen_wagen)
             return
             

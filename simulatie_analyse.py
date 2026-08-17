@@ -240,7 +240,7 @@ if simulatie_data is not None:
     # moet normaal constant zijn dit zijn de sleutels niet opgepikt
     genereer_staafgrafieken_per_vloot_apart(
         data=simulatie_data, 
-        metriek_gemiddelde='gemiddeld_aantal_reserveringen_niet_doorgegaan_en_vrijgegeven', 
+        metriek_gemiddelde='gemiddeld_aantal_reserveringen_niet_doorgegaan', 
         metriek_ondergrens='betrouwbaarheidsinterval_onder_niet_doorgegaan', 
         metriek_bovengrens='betrouwbaarheidsinterval_boven_niet_doorgegaan', 
         y_as_label='gemiddeld reserveringen niet doorgegaan', 

@@ -47,7 +47,7 @@ def voer_enkele_simulatie_run_uit(gekozen_algoritme_module, totaal_aantal_wagens
     
     lijst_gefaalde_reserveringen = [] 
     statistieken = {
-        'niet_doorgegaan_en_vrijgegeven': 0, 
+        'niet_doorgegaan': 0, 
         'succesvol_gewacht': 0
     }
     
@@ -71,14 +71,16 @@ def voer_enkele_simulatie_run_uit(gekozen_algoritme_module, totaal_aantal_wagens
     # nu is simulatie klaar
     
     totale_slijtage_vloot_in_minuten = 0
-    totaal_aantal_reparaties_vloot = 0
+    lijst_reparaties_per_wagen = []
 
     for wagen in alle_wagens_referentie:
         totale_slijtage_vloot_in_minuten += wagen.totale_levensduur_minuten
-        totaal_aantal_reparaties_vloot += wagen.aantal_reparaties
+        lijst_reparaties_per_wagen.append(wagen.aantal_reparaties)
     
     gemiddelde_slijtage_per_wagen_in_minuten = totale_slijtage_vloot_in_minuten / len(alle_wagens_referentie) 
-    gemiddelde_reparaties_per_wagen = totaal_aantal_reparaties_vloot / len(alle_wagens_referentie)
+    
+    gemiddelde_reparaties_per_wagen = np.mean(lijst_reparaties_per_wagen)
+    mediaan_reparaties_per_wagen = np.median(lijst_reparaties_per_wagen)
     
     # simpele optelling uit de lijst van gefaalde reserveringen
     totaal_gefaalde_reserveringen = sum(lijst_gefaalde_reserveringen)
@@ -86,8 +88,9 @@ def voer_enkele_simulatie_run_uit(gekozen_algoritme_module, totaal_aantal_wagens
     return (
         totaal_gefaalde_reserveringen, 
         gemiddelde_slijtage_per_wagen_in_minuten, 
-        gemiddelde_reparaties_per_wagen, 
-        statistieken['niet_doorgegaan_en_vrijgegeven'], 
+        gemiddelde_reparaties_per_wagen,
+        mediaan_reparaties_per_wagen,
+        statistieken['niet_doorgegaan'], 
         statistieken['succesvol_gewacht']
     )
 
@@ -99,12 +102,13 @@ def simuleer_test_combinatie(gekozen_algoritme_module, naam_van_algoritme, totaa
     resultaten_gefaalde_reserveringen = []
     resultaten_slijtage = []
     resultaten_reparaties = []
+    resultaten_mediaan_reparaties = []
     resultaten_niet_doorgegaan = []
     resultaten_gewacht = []
 
     # starten met 100 runs
     for _ in range(100):
-        gefaald, slijtage, reparaties, niet_doorgegaan_vrijgegeven, succesvol_gewacht = voer_enkele_simulatie_run_uit(
+        gefaald, slijtage, reparaties, mediaan_reparaties, niet_doorgegaan, succesvol_gewacht = voer_enkele_simulatie_run_uit(
             gekozen_algoritme_module, 
             totaal_aantal_wagens, 
             aantal_simulatie_dagen, 
@@ -114,7 +118,8 @@ def simuleer_test_combinatie(gekozen_algoritme_module, naam_van_algoritme, totaa
         resultaten_gefaalde_reserveringen.append(gefaald)
         resultaten_slijtage.append(slijtage)
         resultaten_reparaties.append(reparaties)
-        resultaten_niet_doorgegaan.append(niet_doorgegaan_vrijgegeven)
+        resultaten_mediaan_reparaties.append(mediaan_reparaties)
+        resultaten_niet_doorgegaan.append(niet_doorgegaan)
         resultaten_gewacht.append(succesvol_gewacht)
 
         if len(resultaten_gefaalde_reserveringen) % 20 == 0:
@@ -130,7 +135,7 @@ def simuleer_test_combinatie(gekozen_algoritme_module, naam_van_algoritme, totaa
     
     # zolang dit te groot is (boven de toegestane foutmarge) blijven runs uitvoeren
     while huidige_standaardfout > maximaal_toegestane_foutmarge:
-        gefaald, slijtage, reparaties, niet_doorgegaan_vrijgegeven, succesvol_gewacht = voer_enkele_simulatie_run_uit(
+        gefaald, slijtage, reparaties, mediaan_reparaties, niet_doorgegaan, succesvol_gewacht = voer_enkele_simulatie_run_uit(
             gekozen_algoritme_module, 
             totaal_aantal_wagens, 
             aantal_simulatie_dagen, 
@@ -140,7 +145,8 @@ def simuleer_test_combinatie(gekozen_algoritme_module, naam_van_algoritme, totaa
         resultaten_gefaalde_reserveringen.append(gefaald)
         resultaten_slijtage.append(slijtage)
         resultaten_reparaties.append(reparaties)
-        resultaten_niet_doorgegaan.append(niet_doorgegaan_vrijgegeven)
+        resultaten_mediaan_reparaties.append(mediaan_reparaties)
+        resultaten_niet_doorgegaan.append(niet_doorgegaan)
         resultaten_gewacht.append(succesvol_gewacht)
         
         aantal_uitgevoerde_runs += 1
@@ -155,6 +161,7 @@ def simuleer_test_combinatie(gekozen_algoritme_module, naam_van_algoritme, totaa
         resultaten_gefaalde_reserveringen, 
         resultaten_slijtage, 
         resultaten_reparaties, 
+        resultaten_mediaan_reparaties,
         resultaten_niet_doorgegaan, 
         resultaten_gewacht, 
         aantal_uitgevoerde_runs
@@ -204,7 +211,8 @@ if __name__ == "__main__":
                 'standaardafwijking_slijtage', 
                 'betrouwbaarheidsinterval_onder_slijtage', 
                 'betrouwbaarheidsinterval_boven_slijtage',
-                'gemiddeld_aantal_reparaties_per_wagen', 
+                'gemiddeld_aantal_reparaties_per_wagen',
+                'mediaan_aantal_reparaties_per_wagen', 
                 'standaardafwijking_reparaties', 
                 'betrouwbaarheidsinterval_onder_reparaties', 
                 'betrouwbaarheidsinterval_boven_reparaties',
@@ -260,7 +268,7 @@ if __name__ == "__main__":
                     print("\n")
                     print(f"test: {scenario['naam']}, vlootgrootte: {test_aantal_wagens}, algoritme: {naam_van_algoritme}, ingestelde wachttijd: {wachttijd_minuten}m")
                     
-                    res_gefaald, res_slijtage, res_reparaties, res_niet_doorgegaan, res_gewacht, totaal_uitgevoerde_runs = simuleer_test_combinatie(
+                    res_gefaald, res_slijtage, res_reparaties, res_mediaan_reparaties, res_niet_doorgegaan, res_gewacht, totaal_uitgevoerde_runs = simuleer_test_combinatie(
                         gekozen_algoritme_module,
                         naam_van_algoritme,
                         test_aantal_wagens, 
@@ -280,6 +288,7 @@ if __name__ == "__main__":
                     foutmarge_slijtage = 1.96 * (standaardafwijking_slijtage / np.sqrt(totaal_uitgevoerde_runs))
                     
                     gemiddelde_reparaties = float(np.mean(res_reparaties))
+                    gemiddelde_mediaan_reparaties = float(np.mean(res_mediaan_reparaties))
                     standaardafwijking_reparaties = float(np.std(res_reparaties, ddof=1))
                     foutmarge_reparaties = 1.96 * (standaardafwijking_reparaties / np.sqrt(totaal_uitgevoerde_runs))
                     
@@ -315,6 +324,7 @@ if __name__ == "__main__":
                             round(gemiddelde_slijtage + foutmarge_slijtage, 4),
                             
                             round(gemiddelde_reparaties, 4),
+                            round(gemiddelde_mediaan_reparaties, 4),
                             round(standaardafwijking_reparaties, 4),
                             round(max(0.0, gemiddelde_reparaties - foutmarge_reparaties), 4),
                             round(gemiddelde_reparaties + foutmarge_reparaties, 4),

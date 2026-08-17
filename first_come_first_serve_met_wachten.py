@@ -131,9 +131,10 @@ def voer_reservering_uit(simulatie_omgeving, parkeerplaats_queue, huidige_reserv
             # Bij fcfs met wachten wordt de auto beschikbaar als de reserveerder
             # niet opdaagt
             if huidige_reservering.get('sleutels_opgehaald') == 0:
-                # wagen is niet beschikbaar maar rijd ook niet, dus return 
-                yield simulatie_omgeving.timeout(annuleringsmarge_in_minuten)
-                statistieken['niet_doorgegaan_en_vrijgegeven'] += 1
+                # 15 minuten wachten
+                # wagen is niet beschikbaar maar rijd wel 
+                yield simulatie_omgeving.timeout(15.0)
+                statistieken['niet_doorgegaan'] += 1
                 yield parkeerplaats_queue.put(gekozen_wagen)
                 return
                 

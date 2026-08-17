@@ -121,14 +121,94 @@ def bereken_weibull_faalkans(huidige_levensduur_in_minuten, duur_nieuwe_reserver
     kans_op_falen = 1.0 - np.exp(exponent_voor_de_reservering - exponent_na_de_reservering)
     return kans_op_falen
 
-def verplaats_wagen(simulatie_omgeving, wagen_om_te_verplaatsen, bestemmings_parkeerplaats, reistijd_in_minuten):
+def zoek_beste_donor(locatie_in_nood, verzameling_wagens_per_locatie, actuele_reistijden_matrix):
+    kandidaten = []
+    for potentiele_donor_locatie, parkeerplaats_mogelijke_donor in verzameling_wagens_per_locatie.items():
+        # een donor is in principe niet een locatie in nood maar voor alle zekerheid toch checken
+        if potentiele_donor_locatie != locatie_in_nood and len(parkeerplaats_mogelijke_donor.items) > 1:
+            reistijd = actuele_reistijden_matrix[potentiele_donor_locatie][locatie_in_nood]
+            kandidaten.append((reistijd, potentiele_donor_locatie))
+            
+    if kandidaten:
+        kandidaten.sort(key=lambda x: x[0]) # sorteer van kortste naar langste reistijd
+        return kandidaten[0] # geeft (kortste_reistijd, donor_locatie) terug
+    return None
+
+# dit verplaatst de wagen van de donorlocatie naar locatie in nood
+def bereid_locatie_voor(simulatie_omgeving, huidige_reservering, verzameling_wagens_per_locatie, wagens_onderweg_teller):
+    locatie_in_nood = huidige_reservering['locatie']
+    
+    huidig_uur = (huidige_reservering['absolute_starttijd'] % 1440) / 60.0
+    if (7 <= huidig_uur < 10) or (16 <= huidig_uur < 19):
+        actuele_reistijden_matrix = maximale_reistijden_in_minuten
+    elif (huidig_uur >= 22) or (huidig_uur < 6):
+        actuele_reistijden_matrix = minimale_reistijden_in_minuten
+    else:
+        actuele_reistijden_matrix = gemiddelde_reistijden_in_minuten
+
+    beste_donor_info = zoek_beste_donor(locatie_in_nood, verzameling_wagens_per_locatie, actuele_reistijden_matrix)
+    if not beste_donor_info:
+        return
+        
+    kortste_reistijd, _ = beste_donor_info
+    
+    # Checken of we de tijd hebben om auto te brengen met 5 minuten speling
+    controle_moment = huidige_reservering['absolute_starttijd'] - kortste_reistijd - 5.0
+    wacht_tot_controle = controle_moment - simulatie_omgeving.now
+    
+    if wacht_tot_controle > 0:
+        yield simulatie_omgeving.timeout(wacht_tot_controle)
+
+    parkeerplaats_in_nood = verzameling_wagens_per_locatie[locatie_in_nood]
+    wagens_beschikbaar_en_onderweg = len(parkeerplaats_in_nood.items) + wagens_onderweg_teller[locatie_in_nood]
+
+    if wagens_beschikbaar_en_onderweg == 0:
+        huidig_uur_nu = (simulatie_omgeving.now % 1440) / 60.0
+        if (7 <= huidig_uur_nu < 10) or (16 <= huidig_uur_nu < 19):
+            matrix_nu = maximale_reistijden_in_minuten
+        elif (huidig_uur_nu >= 22) or (huidig_uur_nu < 6):
+            matrix_nu = minimale_reistijden_in_minuten
+        else:
+            matrix_nu = gemiddelde_reistijden_in_minuten
+            
+        beste_donor_nu = zoek_beste_donor(locatie_in_nood, verzameling_wagens_per_locatie, matrix_nu)
+        
+        if beste_donor_nu:
+            reistijd_nu, donor_nu = beste_donor_nu
+            parkeerplaats_donor = verzameling_wagens_per_locatie[donor_nu]
+            
+            wagen_om_te_verplaatsen = yield parkeerplaats_donor.get()
+            
+            wagens_onderweg_teller[locatie_in_nood] += 1
+            
+            simulatie_omgeving.process(verplaats_wagen(
+                simulatie_omgeving, 
+                wagen_om_te_verplaatsen, 
+                parkeerplaats_in_nood, 
+                reistijd_nu,
+                locatie_in_nood,         
+                wagens_onderweg_teller    
+            ))
+
+def verplaats_wagen(simulatie_omgeving, wagen_om_te_verplaatsen, bestemmings_parkeerplaats, reistijd_in_minuten, nieuwe_locatie_naam, wagens_onderweg_teller):
     # tijd van verplaatsing nu is de wagen onbeschikbaar
     yield simulatie_omgeving.timeout(reistijd_in_minuten)
     
+    # de locatie aanpassen aan de nieuwe naam
+    wagen_om_te_verplaatsen.locatie_naam = nieuwe_locatie_naam
+
+    wagen_om_te_verplaatsen.totale_levensduur_minuten += reistijd_in_minuten
+    wagen_om_te_verplaatsen.minuten_sinds_laatste_onderhoud += reistijd_in_minuten
+    wagen_om_te_verplaatsen.minuten_banden_lek += reistijd_in_minuten
+    wagen_om_te_verplaatsen.minuten_banden_slijtage += reistijd_in_minuten
+    wagen_om_te_verplaatsen.minuten_remblokjes_slijtage += reistijd_in_minuten
+
     # wagen aan de bestemmingslocatie toevoegen
     yield bestemmings_parkeerplaats.put(wagen_om_te_verplaatsen)
+    
+    wagens_onderweg_teller[nieuwe_locatie_naam] -= 1
 
-def monitor_wagens_tijdens_de_dag(simulatie_omgeving, verzameling_wagens_per_locatie):
+def monitor_wagens_tijdens_de_dag(simulatie_omgeving, verzameling_wagens_per_locatie, wagens_onderweg_teller):
     while True:
         # elke 60 minuten kijken of er locaties zijn die nood hebben
         yield simulatie_omgeving.timeout(60.0) 
@@ -149,27 +229,30 @@ def monitor_wagens_tijdens_de_dag(simulatie_omgeving, verzameling_wagens_per_loc
         # elke locatie wordt bekeken
         for locatie_in_nood, parkeerplaats_in_nood in verzameling_wagens_per_locatie.items():
             
-            # geen auto beschikbaar maar er is wel een wachtrij van reserveerders
-            if len(parkeerplaats_in_nood.items) == 0 and len(parkeerplaats_in_nood.get_queue) > 0:
-                donor_locatie_met_overschot = None
+            # als er al wagens onderweg zijn dan hoeft er geen nieuwe wagen te worden gestuurd
+            if len(parkeerplaats_in_nood.items) == 0 and len(parkeerplaats_in_nood.get_queue) > wagens_onderweg_teller[locatie_in_nood]:
                 
-                for potentiele_donor_locatie, parkeerplaats_mogelijke_donor in verzameling_wagens_per_locatie.items():
-                    # enkel wagens weg nemen bij locaties die niet in nood zijn, 
-                    # en die zelf nog meer dan 1 wagen op voorraad hebben
-                    if potentiele_donor_locatie != locatie_in_nood and len(parkeerplaats_mogelijke_donor.items) > 1:
-                        donor_locatie_met_overschot = potentiele_donor_locatie
-                        break
-                        
+                # de beste donor wordt gezocht adhv de reistijden matrix en de beschikbare wagens
+                beste_donor_info = zoek_beste_donor(locatie_in_nood, verzameling_wagens_per_locatie, actuele_reistijden_matrix)
                 
-                if donor_locatie_met_overschot:
+                if beste_donor_info:
+                    opgezochte_reistijd, donor_locatie_met_overschot = beste_donor_info
                     parkeerplaats_donor = verzameling_wagens_per_locatie[donor_locatie_met_overschot]
+                    
                     # vanaf de get is de wagen niet beschikbaar op die locatie
                     wagen_om_te_verplaatsen = yield parkeerplaats_donor.get()
                     
-                    opgezochte_reistijd = actuele_reistijden_matrix[donor_locatie_met_overschot][locatie_in_nood]
+                    wagens_onderweg_teller[locatie_in_nood] += 1
                     
                     # verplaatsen van de wagen naar de locatie in nood, kost tijd
-                    simulatie_omgeving.process(verplaats_wagen(simulatie_omgeving, wagen_om_te_verplaatsen, parkeerplaats_in_nood, opgezochte_reistijd))
+                    simulatie_omgeving.process(verplaats_wagen(
+                        simulatie_omgeving, 
+                        wagen_om_te_verplaatsen, 
+                        parkeerplaats_in_nood, 
+                        opgezochte_reistijd,
+                        locatie_in_nood,          
+                        wagens_onderweg_teller   
+                    ))
 
 def voer_reservering_uit(simulatie_omgeving, parkeerplaats_wachtrij, huidige_reservering, lijst_gefaalde_reserveringen, statistieken, geduld_wachttijd_minuten):
     wachttijd_tot_start_reservering = huidige_reservering['absolute_starttijd'] - simulatie_omgeving.now
@@ -178,7 +261,7 @@ def voer_reservering_uit(simulatie_omgeving, parkeerplaats_wachtrij, huidige_res
         
     start_wacht_tijd_moment = simulatie_omgeving.now
     maximaal_geduld_klant_in_minuten = geduld_wachttijd_minuten
-    annuleringsmarge_in_minuten = 15.0
+    
     
     with parkeerplaats_wachtrij.get() as aanvraag_voor_wagen:
         
@@ -191,8 +274,8 @@ def voer_reservering_uit(simulatie_omgeving, parkeerplaats_wachtrij, huidige_res
                 statistieken['succesvol_gewacht'] += 1
             
             if huidige_reservering.get('sleutels_opgehaald') == 0:
-                yield simulatie_omgeving.timeout(annuleringsmarge_in_minuten)
-                statistieken['niet_doorgegaan_en_vrijgegeven'] += 1
+                yield simulatie_omgeving.timeout(15.0)
+                statistieken['niet_doorgegaan'] += 1
                 yield parkeerplaats_wachtrij.put(gekozen_wagen)
                 return
                 
@@ -232,12 +315,23 @@ def voer_reservering_uit(simulatie_omgeving, parkeerplaats_wachtrij, huidige_res
             lijst_gefaalde_reserveringen.append(1)
 
 def start_simulatie(simulatie_omgeving, verzameling_wagens_per_locatie, lijst_met_reserveringen, lijst_gefaalde_reserveringen, statistieken, geduld_wachttijd_minuten):
-    simulatie_omgeving.process(monitor_wagens_tijdens_de_dag(simulatie_omgeving, verzameling_wagens_per_locatie))
+    # per locatie een wagen die onderweg is
+    wagens_onderweg_teller = {L1: 0, L2: 0, L3: 0, L4: 0}
+    
+    simulatie_omgeving.process(monitor_wagens_tijdens_de_dag(simulatie_omgeving, verzameling_wagens_per_locatie, wagens_onderweg_teller))
     
     for huidige_reservering in lijst_met_reserveringen:
         tijd_tot_boekingsmoment = huidige_reservering['boekingsmoment'] - simulatie_omgeving.now
         if tijd_tot_boekingsmoment > 0:
             yield simulatie_omgeving.timeout(tijd_tot_boekingsmoment)
+            
+        # paralel proces die kijkt of er een donor wagen kan worden gestuurd naar de locatie op voorhand
+        simulatie_omgeving.process(bereid_locatie_voor(
+            simulatie_omgeving, 
+            huidige_reservering, 
+            verzameling_wagens_per_locatie,
+            wagens_onderweg_teller
+        ))
             
         simulatie_omgeving.process(voer_reservering_uit(
             simulatie_omgeving, 

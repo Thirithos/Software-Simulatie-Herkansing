@@ -124,7 +124,7 @@ def voer_reservering_uit(simulatie_omgeving, parkeerplaats_queue, huidige_reserv
     if huidige_reservering.get('sleutels_opgehaald') == 0:
         # wagen is niet beschikbaar maar rijd ook niet, dus return 
         yield simulatie_omgeving.timeout(huidige_reservering['duur_minuten'])
-        statistieken['niet_doorgegaan_en_vrijgegeven'] += 1
+        statistieken['niet_doorgegaan'] += 1
         yield parkeerplaats_queue.put(gekozen_wagen)
         return
         
